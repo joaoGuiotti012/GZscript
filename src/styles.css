@@ -1,1 +1,5 @@
 /* You can add global styles to this file, and also import other style files */
+/* @import './styles/bootstrap-3.3.7-dist/css/bootstrap.min.css'; */
+@import '~codemirror/lib/codemirror';
+@import '~codemirror/theme/material';
+@import '~bootstrap/dist/css/bootstrap.min.css';
