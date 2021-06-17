@@ -6,7 +6,7 @@ import {
   isOperator
 } from './comparadores'
 
-import { RESERVADAS } from './reservadas'
+import { RESERVADAS, isTipagem, isReserved, isSymbol, isVar, isBool } from './reservadas'
 
 interface Lexer {
   type: string;
@@ -27,8 +27,7 @@ export class AnalisadorService {
   _lexer: Lexer;
   _token: any;
 
-  EOF = 0;
-  reservedWord: any = [];
+  reservedVars: any = [];
   variables: any = [];
   linhas: any;
   errors: any = [];
@@ -37,125 +36,147 @@ export class AnalisadorService {
 
   begin(): void {
     console.log(RESERVADAS);
-    this.reservedWord = [];
+    this.reservedVars = [];
     this.linhas = null;
     this.errors = [];
   }
 
-  analisarLx(code: string): Lexer[] {
-    return code.split(/\s+/)
-      .filter((t) => t.length > 0)
-      .map((t: any) => {
-        return isOperator(t)
-          ? { type: 'operator', value: t }
-          : isNaN(t)
-            ? { type: 'word', value: t }
-            : { type: 'number', value: t }
-      });
+  isComentario(value) {
+    return /\/\//.exec(value);
   }
 
-
-  // current token (LX) => em loop
-  // LX.type === 'Operator' | 'word' | 'numeiric' 
-
-  // word => pegar token para validar expressao => cont ++
-  // Operator => switch simbols => 
-  // Int teste = 0;
-  // teste++;
+  analisarLx(code: string): any[] {
+    let contLinhas = 0
+    const split = code.split(';')
+      .filter((line: string) => {
+        if (line != '')
+          contLinhas++;
+        return !this.isComentario(line)
+      }).map((t: any) => {
+        // Ponto a alterar
+        // - metodos auxiliares para reconher tipos dos tokens
+        return t.split(/\s+/).map((t) => {
+          let response: string = null;
+          if (t != "") {
+            if (isTipagem(t)) {
+              response = 'TYPE';
+            } else if (isNaN(t)) { //se for string
+              if (isSymbol(t)) {//se for simbolo reservda
+                response = 'SYMBOL';
+              } else if (isReserved(t)) { //se for palavra reservda
+                response = 'RESERVED';
+              } else {
+                response = 'STRING';
+              }
+            } else {
+              response = 'NUMBER'
+            }
+            return { type: response, value: t }
+          }
+        });
+      });
+    this.linhas = contLinhas;
+    return split;
+  }
 
   //OBJETIVO
-  // Realizar operacoes matemaaticas basicas (+, -)
-  // Imprimir hello GzWord !
-  parser(last: string, lexer: Lexer[], cont: number = 0) {
-    var current_lx = lexer[cont];
-    var EOF = lexer.length;
+  // Indentificar gramatiaca
+  // e realizar log do lexer
+  async parser(lexer: any) {
 
-    if (EOF === cont) {
-      
-    }
+    console.log(lexer);
+    // for paara cada tokne da sua lista
+    //for validar string pertence ao arquivo de palavras reservadas
+    var currentIndex = 1;
+    await lexer.forEach(line => {
+      if (line.length === 1 && line[0] === undefined) { return }
+      console.log(currentIndex);
+      currentIndex++;
+
+      var _varName: string = null; // guarda nome da var
+      var _varType: string = null; // guarda se existir tipagem
+      line.forEach((l: Lexer) => { // percore a mesma linha;
+        if (l === undefined) { return }
+        // console.log('l =>', l);
+        // l.type ==> 'word' | 'operator' | 'numeric'  ||  l.value
+
+        switch (l.type) {
+
+          case 'TYPE':
+            _varType = l.value;
+            break;
+
+          case 'RESERVED':
+            break;
 
 
-    switch (current_lx.type) {
+          case 'SYMBOL':
 
-      case 'word':
+            break;
 
-        if (this.token.getTokenBycode(current_lx.value)) {
-          this._token = this.token.getTokenBycode(current_lx.value)
-        } else {
-          this.reservedWord.push(current_lx.value);
-          this.parser
+          case 'STRING':
+            if (!!_varType) {
+              if (isVar(l.value)) {
+                if (!!_varName) {
+                  this.errors.push('Erro de sintaxe linha: ' + currentIndex);
+                  return;
+                }
+                _varName = isBool(l.value) ? Boolean(l.value) : l.value;
+              } else {
+                let regExp = RESERVADAS['valores'].filter(vl => vl.tipo == _varType)[0].token;
+                if (!!regExp && regExp.exec(l.value)) {
+                  this.reservedVars.push({ var: _varName, type: _varType, value: l.value });
+                } else {
+                  this.errors.push('valor não corresponde ao tipo declarado para a variavel ' + _varName + ', linha: ' + currentIndex);
+                }
+              }
+            }
+            break;
+
+          case 'NUMBER':
+
+            if (!!_varType) {
+              if (isVar(l.value)) {
+                if (!!_varName) {
+                  this.errors.push('Erro de sintaxe linha: ' + currentIndex);
+                  return;
+                }
+                _varName = l.value;
+              } else {
+                let regExp = RESERVADAS['valores'].filter(vl => vl.tipo == _varType)[0].token;
+                if (!!regExp && regExp.exec(l.value)) {
+                  this.reservedVars.push({ var: _varName, type: _varType, value: l.value });
+                } else {
+                  this.errors.push('O valor ' + l.value + ' não corresponde ao tipo declarado para a variavel ' + _varName);
+                }
+              }
+            }
+            break;
+
+          default:
+
+            break;
         }
-        this.parser('word', lexer, cont++);
 
-        break;
-
-      case 'number':
-
-        break;
-
-      case 'operator':
-
-        break;
-
-      default:
-        break;
-    }
-
-
-
-
-
-
-
-    // while (lexer.length > 0) {
-    //   var current_lx = lexer.shift();
-    //   var _token: any;
-    //   var _lexer: Lexer;
-    //   var _reserved: any;
-
-    //   if (current_lx.type === 'word') {
-
-    //     if (this.token.getTokenBycode(current_lx.value)) {
-    //       _lexer = lexer.shift();
-    //       _token = this.token.getTokenBycode(current_lx.value);
-
-    //       _reserved = _lexer.value;
-
-    //       if (lexer.shift().value === '=') {
-    //         _lexer = lexer.shift();
-
-    //         if (!!_token.token.exec(_lexer.value)) {
-    //           this.reservedWord = { [_reserved]: _lexer.value.split(';')[0] };
-    //           console.log(_lexer.value.split(';')[0]);
-    //         } else {
-    //           this.errors.push('Valor atribuido invalido para o tipo da variavel ' + _reserved);
-    //           throw ('Valor atribuido invalido para o tipo da variavel ' + _reserved)
-    //         }
-    //       } else {
-    //         this.errors.push('Erro Linha, valor esperado "="');
-    //         throw ('Erro Linha, valor esperado "="')
-    //       }
-
-    //     } else {
-    //       this.errors.push('Tipo invalido: ' + current_lx.value)
-    //       throw ('Tipo invalido: ' + current_lx.value)
-    //     }
-
-    //   }
-    // }
+      });
+    });
+    console.log('Reserved Word ==> ', this.reservedVars);
   }
 
   compilaGz(code) {
     try {
       this.begin();
-      this.EOF = this.analisarLx(code).length;
-      this.parser(null, this.analisarLx(code));
-      alert('código compilado com sucesso!');
+      this.parser(this.analisarLx(code));
     } catch (error) {
-      alert('Erro ao compilar!');
+      this.errors.push(error);
       console.error(error)
     }
-    return { errors: this.errors, reservedWord: this.reservedWord }
+    return {
+      linhas: this.linhas,
+      errors: this.errors,
+      reservedVars: this.reservedVars,
+      lx: this.analisarLx(code)
+    }
   }
 
 

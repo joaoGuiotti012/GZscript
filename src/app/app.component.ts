@@ -4,7 +4,7 @@ import { AnalisadorService } from './core/analisador.service';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.css']
+  styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
   title = 'compiladorTS';
@@ -23,7 +23,19 @@ export class AppComponent {
   constructor(private analisador: AnalisadorService) {
   }
 
+  ngOnInit(): void {
+    //Called after the constructor, initializing input properties, and the first call to ngOnChanges.
+    //Add 'implements OnInit' to the class.
+    this.codigoFonte = localStorage.getItem('code');
+  }
+
+  limparEditor() {
+    this.codigoFonte = '';
+    localStorage.removeItem('code');
+  }
+
   compilar() {
+    localStorage.setItem('code', this.codigoFonte)
     this.saida = this.analisador.compilaGz(this.codigoFonte);
   }
 

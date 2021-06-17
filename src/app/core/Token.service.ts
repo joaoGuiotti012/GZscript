@@ -3,20 +3,24 @@ import { Injectable } from "@angular/core";
 
 const TOKENS = [
     {
-        token: new RegExp(/^(["])(?:(?=(\\?))\2.)*?\1$/),
-        codigo: 'St'
+        token: new RegExp(/^v_[[a-zA-Z_$][a-zA-Z_$0-9]*$/),
+        codigo: 'VAR'
     },
     {
-        token: new RegExp(/^((true)|(false))$/),
-        codigo: 'Bo'
+        token: new RegExp(/^(["])(?:(?=(\\?))\2.)*?\1$/),
+        codigo: '$St'
     },
     {
         token: new RegExp(/^[0-9][0-9]*$/),
-        codigo: 'In'
+        codigo: '$In'
     },
     {
         token: new RegExp(/^[0-9][0-9]*[.][0-9][0-9]*$/),
-        codigo: 'Fl'
+        codigo: '$Fl'
+    },
+    {
+        token: new RegExp(/^((true)|(false))$/),
+        codigo: '$Bo'
     },
 ]
 
@@ -35,3 +39,5 @@ export class TokenService {
         return TOKENS;
     }
 }
+
+

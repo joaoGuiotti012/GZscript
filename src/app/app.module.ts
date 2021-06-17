@@ -6,6 +6,8 @@ import { AppComponent } from './app.component';
 import { ButtonModule } from 'primeng/button';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RippleModule } from 'primeng/ripple';
+import { TooltipModule } from 'primeng/tooltip';
+import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
 @NgModule({
   declarations: [
@@ -17,7 +19,9 @@ import { RippleModule } from 'primeng/ripple';
     FormsModule,
     CodemirrorModule,
     ButtonModule,
-    RippleModule
+    RippleModule,
+    TooltipModule,
+    NgxJsonViewerModule
   ],
   providers: [],
   bootstrap: [AppComponent]

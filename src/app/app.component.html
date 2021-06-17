@@ -16,9 +16,12 @@
         }">
           </ngx-codemirror>
         </div>
-        <div class="card-body">
+        <div class="card-body" #cardBody>
+          <button pButton type="button" icon="pi pi-times" (click)="limparEditor()" class="p-button-danger limpar">
+          </button>
           <button pButton type="button" icon="pi pi-play" label="Compilar" (click)="compilar()"
-            class="p-button"></button>
+            class="p-button">
+          </button>
         </div>
       </div>
     </div>
@@ -28,7 +31,8 @@
         <div class="card-header bg-console">Console</div>
         <div class="card-body">
           <!-- <h5 class="card-title">Dark card title</h5> -->
-          <p class="card-text"> {{ saida | json }} </p>
+          <ngx-json-viewer [json]="saida" [expanded]="false" [depth]="1"></ngx-json-viewer>
+          <!-- <p class="card-text"> {{ saida | json }} </p> -->
         </div>
       </div>
     </div>
