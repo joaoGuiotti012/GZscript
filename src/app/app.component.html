@@ -1,3 +1,27 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Gz Script</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="#">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Link</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link disabled">Disabled</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- BODY -->
 <div class="container">
   <br>
   <div class="row">
@@ -19,8 +43,7 @@
         <div class="card-body" #cardBody>
           <button pButton type="button" icon="pi pi-times" (click)="limparEditor()" class="p-button-danger limpar">
           </button>
-          <button pButton type="button" icon="pi pi-play" label="Compilar" (click)="compilar()"
-            class="p-button">
+          <button pButton type="button" icon="pi pi-play" label="Compilar" (click)="compilar()" class="p-button">
           </button>
         </div>
       </div>
@@ -28,11 +51,23 @@
 
     <div class="col-md-6 mb-3">
       <div class="card mb-3" style="min-height: 441px;" *ngIf="!!saida">
-        <div class="card-header bg-console">Console</div>
+        <div class="card-header bg-console">
+          <div class="d-flex">
+            <div class="col">
+              <span>Console</span>
+            </div>
+            <div class="">
+              <button class="btn btn-primary" (click)="expandir()">
+                {{ isJsonExpanded ? 'Fechar Tudo' : 'Expandir Tudo'}} 
+              </button>
+            </div>
+          </div>
+
+        </div>
         <div class="card-body">
-          <!-- <h5 class="card-title">Dark card title</h5> -->
-          <ngx-json-viewer [json]="saida" [expanded]="false" [depth]="1"></ngx-json-viewer>
-          <!-- <p class="card-text"> {{ saida | json }} </p> -->
+
+          <ngx-json-viewer [json]="saida" [expanded]="isJsonExpanded" [depth]="1"></ngx-json-viewer>
+
         </div>
       </div>
     </div>

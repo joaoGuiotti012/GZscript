@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { TokenService } from './Token.service';
 import {
   OPERATORS,
-  isQuebraLinha,
   isOperator
 } from './comparadores'
 
@@ -45,6 +44,10 @@ export class AnalisadorService {
     return /\/\//.exec(value);
   }
 
+  isReservedVar(v: string): boolean {
+    return !!this.reservedVars.find((rv) => rv.var === v);
+  }
+
   analisarLx(code: string): any[] {
     let contLinhas = 0
     const split = code.split(';')
@@ -79,15 +82,14 @@ export class AnalisadorService {
     return split;
   }
 
+  
   //OBJETIVO
   // Indentificar gramatiaca
   // e realizar log do lexer
-  async parser(lexer: any) {
+  async tokenizer(lexer: any) {
 
     console.log(lexer);
-    // for paara cada tokne da sua lista
-    //for validar string pertence ao arquivo de palavras reservadas
-    var currentIndex = 1;
+    var currentIndex = 0;
     await lexer.forEach(line => {
       if (line.length === 1 && line[0] === undefined) { return }
       console.log(currentIndex);
@@ -97,8 +99,6 @@ export class AnalisadorService {
       var _varType: string = null; // guarda se existir tipagem
       line.forEach((l: Lexer) => { // percore a mesma linha;
         if (l === undefined) { return }
-        // console.log('l =>', l);
-        // l.type ==> 'word' | 'operator' | 'numeric'  ||  l.value
 
         switch (l.type) {
 
@@ -117,13 +117,18 @@ export class AnalisadorService {
           case 'STRING':
             if (!!_varType) {
               if (isVar(l.value)) {
+                console.log(l.value);
+                if (this.isReservedVar(l.value)) {
+                  this.errors.push('Variavel ' + l.value + 'já foi declarda, erro linha: ' + currentIndex);
+                  return;
+                }
                 if (!!_varName) {
                   this.errors.push('Erro de sintaxe linha: ' + currentIndex);
                   return;
                 }
                 _varName = isBool(l.value) ? Boolean(l.value) : l.value;
               } else {
-                let regExp = RESERVADAS['valores'].filter(vl => vl.tipo == _varType)[0].token;
+                let regExp = RESERVADAS['VAR'].filter(vl => vl.tipo == _varType)[0].token;
                 if (!!regExp && regExp.exec(l.value)) {
                   this.reservedVars.push({ var: _varName, type: _varType, value: l.value });
                 } else {
@@ -137,13 +142,18 @@ export class AnalisadorService {
 
             if (!!_varType) {
               if (isVar(l.value)) {
+                if (this.isReservedVar(l.value)) {
+                  this.errors.push('Variavel ' + l.value + 'já foi declarda, erro linha: ' + currentIndex);
+                  return;
+                }
+
                 if (!!_varName) {
                   this.errors.push('Erro de sintaxe linha: ' + currentIndex);
                   return;
                 }
                 _varName = l.value;
               } else {
-                let regExp = RESERVADAS['valores'].filter(vl => vl.tipo == _varType)[0].token;
+                let regExp = RESERVADAS['VAR'].filter(vl => vl.tipo == _varType)[0].token;
                 if (!!regExp && regExp.exec(l.value)) {
                   this.reservedVars.push({ var: _varName, type: _varType, value: l.value });
                 } else {
@@ -157,16 +167,14 @@ export class AnalisadorService {
 
             break;
         }
-
       });
     });
-    console.log('Reserved Word ==> ', this.reservedVars);
   }
 
   compilaGz(code) {
     try {
       this.begin();
-      this.parser(this.analisarLx(code));
+      this.tokenizer(this.analisarLx(code));
     } catch (error) {
       this.errors.push(error);
       console.error(error)

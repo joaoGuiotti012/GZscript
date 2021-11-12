@@ -1,8 +1,7 @@
 
 
 export const RESERVADAS = {
-
-    palavrasReservadas: [
+    PR: [
         {
             token: 'EQ',
             codigo: '='
@@ -63,16 +62,8 @@ export const RESERVADAS = {
             token: 'NOT',
             codigo: '!'
         },
-        // {
-        //     token: 'true',
-        //     codigo: 'true'
-        // },
-        // {
-        //     token: 'false',
-        //     codigo: 'false'
-        // },
-    ], //todas as palavras reservadas
-    tiposVariaveis: [
+    ], 
+    TV: [
         {
             token: '$In',
             codigo: 'number'
@@ -89,8 +80,8 @@ export const RESERVADAS = {
             token: '$Bo',
             codigo: 'boolean'
         },
-    ], // todos os tipos de variaveis
-    simbolosReservados: [
+    ], 
+    SR: [
         {
             token: '=',
             codigo: '='
@@ -127,8 +118,16 @@ export const RESERVADAS = {
             token: '#',
             codigo: '//'
         },
-    ], //todos os simbolos da linguagem
-    operadoresLogicos: [
+        {
+            token: '<',
+            codigo: '<'
+        },
+        {
+            token: '>',
+            codigo: '>'
+        },
+    ], 
+    OL: [
         {
             token: 'BTEQ',
             codigo: '>'
@@ -158,7 +157,7 @@ export const RESERVADAS = {
             codigo: '!'
         },
     ],
-    operadoresAritmeticos: [
+    OA: [
         {
             token: '+',
             codigo: '+'
@@ -180,7 +179,7 @@ export const RESERVADAS = {
             codigo: '%'
         }
     ],
-    valores: [
+    VAR: [
         {
             token: new RegExp(/^v_[[a-zA-Z_$][a-zA-Z_$0-9]*$/),
             tipo: 'VAR'
@@ -205,25 +204,25 @@ export const RESERVADAS = {
 }
 
 export function isBool(value) {
-    return (value === 'true' || value === 'false' );
+    return (value === 'true' || value === 'false');
 }
 
 export function isTipagem(token) {
-    return !!RESERVADAS['tiposVariaveis'].find(tv => tv.token === token);
+    return !!RESERVADAS['TV'].find(tv => tv.token === token);
 }
 
 export function isReserved(token) {
-    return !!RESERVADAS['palavrasReservadas'].find(tv => tv.token === token);
+    return !!RESERVADAS['PR'].find(tv => tv.token === token);
 }
 
 export function isSymbol(token) {
-    return !!RESERVADAS['simbolosReservados'].find(tv => tv.token === token);
+    return !!RESERVADAS['SR'].find(tv => tv.token === token);
 }
 
 export function isVar(token) {
-    return !!RESERVADAS['valores'][0].token.exec(token);
+    return !!RESERVADAS['VAR'][0].token.exec(token);
 }
 
 export function isOperator(token) {
-    return !!RESERVADAS['operadoresLogicos'].find(op => op.token = token);
+    return !!RESERVADAS['OL'].find(op => op.token = token);
 }
