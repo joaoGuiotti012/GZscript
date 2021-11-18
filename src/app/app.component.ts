@@ -3,6 +3,7 @@ import { AnalisadorService } from './core/analisador.service';
 import { Lexer, Group, Rule, Token, TokenSequence } from '@jlguenego/lexer';
 
 interface Variavel {
+  type: string;
   name: unknown | string;
   valor: any;
 };
@@ -18,6 +19,7 @@ export class AppComponent {
   codigoFonte: string = '';
   tokenSequence: TokenSequence;
   logErros: any = [];
+  variaveis: Variavel[] = [];
 
   private rules: Rule[] = [];
 
@@ -54,13 +56,12 @@ export class AppComponent {
     localStorage.setItem('code', this.codigoFonte)
     try {
       this.tokenSequence = this.lexer(this.codigoFonte);
-      this.compilar()
+      this.compilar();
     } catch (e) {
       this.logErros.push(e);
       alert(e);
     }
   }
-
 
   /**
    * @method lexer
@@ -111,16 +112,24 @@ export class AppComponent {
         pattern: /^[$](Bo)$/,
       },
       {
-        name: 'float',
+        name: 'number',
         pattern: /^[$](Fl)$/,
       },
       {
-        name: 'Integer',
+        name: 'number',
         pattern: /^[$](In)$/,
       },
     ]);
 
     const operators = Rule.createGroup(Group.OPERATORS, [
+      {
+        name: 'BT',
+        pattern: /^(BT)$/
+      },
+      {
+        name: 'LT',
+        pattern: /^(LT)$/
+      },
       {
         name: 'BTEQ',
         pattern: /^(BTEQ)$/
@@ -263,6 +272,15 @@ export class AppComponent {
           case Group.LITTERALS:
 
             if (variaveis.find(v => v.valor === '#') && _currentLineTokens[indexToken - 1].attribute === '=') {
+
+              if (_currentLineTokens[indexToken + 1]?.name === 'OA' && _currentLineTokens[indexToken + 2].group === Group.LITTERALS) {
+                variaveis[lastValIndex].valor = this.castTo(_token) + this.castTo(_currentLineTokens[indexToken + 2]);
+                return;
+              }
+              let lastVal = variaveis[lastValIndex];
+              if (typeof (this.castTo(_token)) !== lastVal.type)
+                throw (`ERROR: variavel "${lastVal.name}" não pertence ao tipo ${typeof (this.castTo(_token))}, POSITION: ${JSON.stringify(_token.position)} `);
+
               variaveis[lastValIndex].valor = this.castTo(_token);
             }
             break;
@@ -273,9 +291,10 @@ export class AppComponent {
 
               if (variaveis.find(v => v.name === _token.attribute))
                 throw ('ERROR: Duplicidade de variaveis, POSITION: ' + JSON.stringify(_token.position));
-              variaveis.push({ name: _token.attribute, valor: '#' })
+
+              variaveis.push({ type: _currentLineTokens[indexToken - 1].name, name: _token.attribute, valor: '#' })
             }
-            if (_token.name === 'read-output' && ( aceitaIF || aceitaELSE)) {
+            if (_token.name === 'read-output' && (aceitaIF || aceitaELSE)) {
               alert(variaveis.find(v => v.name === _currentLineTokens[indexToken + 2].attribute)?.valor || _currentLineTokens[indexToken + 2].attribute);
               return
             }
@@ -288,11 +307,13 @@ export class AppComponent {
 
             if (_currentLineTokens[indexToken - 2].name === "inicio-condicao") {
 
-              if( _token.name === 'OA') {
+              if (_token.name === 'OA') {
+                console.log('OA ==> ', _token);
+
                 return;
               }
 
-              if (_token.name === 'EQ') {
+              if (['EQ', 'NE', 'AND', 'OR', 'BTEQ', 'LTEQ'].includes(_token.name)) {
                 let a = _currentLineTokens[indexToken - 1].group === Group.LITTERALS
                   ? this.castTo(_currentLineTokens[indexToken - 1])
                   : variaveis.find(v => v.name === _currentLineTokens[indexToken - 1].attribute)?.valor;
@@ -301,8 +322,27 @@ export class AppComponent {
                   ? this.castTo(_currentLineTokens[indexToken + 1])
                   : variaveis.find(v => v.name === _currentLineTokens[indexToken + 1].attribute)?.valor;
 
-                aceitaIF = a == b;
+                if ([a, b].includes(undefined))
+                  throw (`ERROR: Variavel inexistente ou valores inconsistentes, POSITION: ${JSON.stringify(_token.position)} `);
+
+                if (_token.name === 'EQ')
+                  aceitaIF = a == b;
+                else if (_token.name === 'NE')
+                  aceitaIF = a != b;
+                else if (_token.name === 'AND')
+                  aceitaIF = a && b;
+                else if (_token.name === 'OR')
+                  aceitaIF = a || b;
+                else if (_token.name === 'BTEQ')
+                  aceitaIF = a >= b;
+                else if (_token.name === 'BT')
+                  aceitaIF = a > b;
+                else if (_token.name === 'LTEQ')
+                  aceitaIF = a <= b;
+                else if (_token.name === 'LT')
+                  aceitaIF = a < b;
               }
+
             }
             break;
 
@@ -329,12 +369,13 @@ export class AppComponent {
             break;
 
           default:
-
-
+            if (_token.name === 'unknow')
+              throw (`ERROR: Error syntaxe unknow, POSITION: ${JSON.stringify(_token.position)}`)
             break;
         }
       });
     }
+    this.variaveis = variaveis;
   }
 
   /**
@@ -344,11 +385,11 @@ export class AppComponent {
    */
   castTo(_token: Token) {
     let result = null;
-    if (_token.name === '$Bo')
-      result = Boolean(_token.attribute);
-
     if (['$In', '$Fl'].includes(_token.name))
       result = Number(_token.attribute);
+
+    if (_token.name === '$Bo')
+      result = Boolean(_token.attribute);
     return result;
   }
 
@@ -359,8 +400,10 @@ export class AppComponent {
   private separaArrysTokensByLine(tokens: TokenSequence): TokenSequence[] {
     let arrayByLine: TokenSequence[] = [];
     let _currentLineTokens: TokenSequence = []
-    tokens.forEach((_token: Token) => {
+    if (tokens.slice(-1)[0].name != 'break-line')
+      throw (`ERROR: faltou fechar com ';'. POSITION ${JSON.stringify(tokens.slice(-1)[0].position)}`)
 
+    tokens.forEach((_token: Token) => {
       if (_token.name === 'break-line' || _token.name === "inicio-escopo") {
         arrayByLine.push(_currentLineTokens);
         console.log(_currentLineTokens);
