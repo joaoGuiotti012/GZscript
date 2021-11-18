@@ -1,6 +1,11 @@
 import { Component, HostListener } from '@angular/core';
 import { AnalisadorService } from './core/analisador.service';
-import { Lexer, Group, Rule } from '@jlguenego/lexer';
+import { Lexer, Group, Rule, Token, TokenSequence } from '@jlguenego/lexer';
+
+interface Variavel {
+  name: unknown | string;
+  valor: any;
+};
 
 @Component({
   selector: 'app-root',
@@ -9,18 +14,19 @@ import { Lexer, Group, Rule } from '@jlguenego/lexer';
 })
 export class AppComponent {
   title = 'Compilador GZscript';
-
   isJsonExpanded = true;
   codigoFonte: string = '';
-  saida: any;
+  tokenSequence: TokenSequence;
+  logErros: any = [];
+
+  private rules: Rule[] = [];
 
   @HostListener('keydown', ['$event'])
   onKeyDown(e) {
     // CTRL + ENTER 
     if (e.ctrlKey && e.keyCode === 13) {
-      this.compilar();
+      this.reconhecerTokens();
     }
-
   }
 
   expandir() {
@@ -38,14 +44,30 @@ export class AppComponent {
     localStorage.removeItem('code');
   }
 
-  compilar() {
+  /**
+   * @method reconhecerTokens
+   * Metodo responsavel por reconhecer a sequencia de 
+   * token e compilar
+   */
+  reconhecerTokens() {
+    this.logErros = [];
     localStorage.setItem('code', this.codigoFonte)
-    this.saida = this.lexer(this.codigoFonte);
-    return;
-    this.saida = this.analisador.compilaGz(this.codigoFonte);
+    try {
+      this.tokenSequence = this.lexer(this.codigoFonte);
+      this.compilar()
+    } catch (e) {
+      this.logErros.push(e);
+      alert(e);
+    }
   }
 
-  lexer(code: string): any { 
+
+  /**
+   * @method lexer
+   * Metodo por organizar as regras da linguagem
+   * e retornar a sequencia de token
+   */
+  lexer(code: string): any {
     // declare all the language rules.
 
     const blank = new Rule({
@@ -79,29 +101,57 @@ export class AppComponent {
       group: Group.NONE
     });
 
-    const tipos = Rule.createGroup(Group.IDENTIFIERS, [
+    const identifiers = Rule.createGroup(Group.IDENTIFIERS, [
       {
         name: 'string',
-        pattern: /[$](St)/,
+        pattern: /^[$](St)$/,
       },
       {
         name: 'boolean',
-        pattern: /[$](Bo)/,
+        pattern: /^[$](Bo)$/,
       },
       {
         name: 'float',
-        pattern: /[$](Fl)/,
+        pattern: /^[$](Fl)$/,
       },
       {
         name: 'Integer',
-        pattern: /[$](In)/,
+        pattern: /^[$](In)$/,
       },
     ]);
 
     const operators = Rule.createGroup(Group.OPERATORS, [
       {
-        name: 'OL',
-        pattern: /(BTEQ|LTEQ|EQ|===|NE|AND|OR|NOT)/,
+        name: 'BTEQ',
+        pattern: /^(BTEQ)$/
+      },
+      {
+        name: 'LTEQ',
+        pattern: /^(LTEQ)$/
+      },
+      {
+        name: 'EQ',
+        pattern: /^(EQ)$/
+      },
+      {
+        name: '===',
+        pattern: /^(===)$/
+      },
+      {
+        name: 'NE',
+        pattern: /^(NE)$/
+      },
+      {
+        name: 'AND',
+        pattern: /^(AND)$/
+      },
+      {
+        name: 'OR',
+        pattern: /^(OR)$/
+      },
+      {
+        name: 'NOT',
+        pattern: /^(NOT)$/
       },
       {
         name: 'OA',
@@ -116,10 +166,10 @@ export class AppComponent {
       },
       {
         name: 'if',
-        pattern: '=='
+        pattern: /^==/
       },
       {
-        name: 'eslse',
+        name: 'else',
         pattern: /[!]/
       },
       {
@@ -132,11 +182,11 @@ export class AppComponent {
       },
       {
         name: 'inicio-escopo',
-        pattern: '<<'
+        pattern: /^<<$/
       },
       {
         name: 'fim-escopo',
-        pattern: '>>'
+        pattern: /^>>$/
       },
       {
         name: 'inicio-read',
@@ -174,11 +224,11 @@ export class AppComponent {
     });
 
     // the order is important. Token are applied from first to last.
-    const rules = [
+    this.rules = [
       blank,
       ...operators,
       ...keywords,
-      ...tipos,
+      ...identifiers,
       ...separators,
       assigment,
       symbols,
@@ -187,6 +237,139 @@ export class AppComponent {
     ];
 
     // Do the job.
-    return new Lexer(rules).tokenize(code);
+    return new Lexer(this.rules).tokenize(code);
   }
+
+  /**
+   * @method compilar
+   * Metodo que realiza as validações(Aceita e Rejeita)
+   */
+  compilar() {
+    let aceitaIF: boolean = false;
+    let aceitaELSE: boolean = false;
+    let variaveis: Variavel[] = [];
+    const _tokensByLine: TokenSequence[] = this.separaArrysTokensByLine(this.tokenSequence);
+
+    for (let line = 0; line < _tokensByLine.length; line++) {
+      let _currentLineTokens: TokenSequence = _tokensByLine[line];
+
+      _currentLineTokens.forEach((_token: Token, indexToken: number) => {
+        let lastValIndex = variaveis.length - 1;
+        switch (_token.group) {
+          case Group.IDENTIFIERS:
+
+            break;
+
+          case Group.LITTERALS:
+
+            if (variaveis.find(v => v.valor === '#') && _currentLineTokens[indexToken - 1].attribute === '=') {
+              variaveis[lastValIndex].valor = this.castTo(_token);
+            }
+            break;
+
+          case Group.KEYWORDS:
+
+            if (_token.name === 'variable' && _currentLineTokens[indexToken + 1].attribute === '=') {
+
+              if (variaveis.find(v => v.name === _token.attribute))
+                throw ('ERROR: Duplicidade de variaveis, POSITION: ' + JSON.stringify(_token.position));
+              variaveis.push({ name: _token.attribute, valor: '#' })
+            }
+            if (_token.name === 'read-output' && ( aceitaIF || aceitaELSE)) {
+              alert(variaveis.find(v => v.name === _currentLineTokens[indexToken + 2].attribute)?.valor || _currentLineTokens[indexToken + 2].attribute);
+              return
+            }
+            // if (_token.name === 'read-output' && aceitaELSE)
+            //   alert(variaveis.find(v => v.name === _currentLineTokens[indexToken + 2].attribute)?.valor || _currentLineTokens[indexToken + 2].attribute);
+
+            break;
+
+          case Group.OPERATORS:
+
+            if (_currentLineTokens[indexToken - 2].name === "inicio-condicao") {
+
+              if( _token.name === 'OA') {
+                return;
+              }
+
+              if (_token.name === 'EQ') {
+                let a = _currentLineTokens[indexToken - 1].group === Group.LITTERALS
+                  ? this.castTo(_currentLineTokens[indexToken - 1])
+                  : variaveis.find(v => v.name === _currentLineTokens[indexToken - 1].attribute)?.valor;
+
+                let b = _currentLineTokens[indexToken + 1].group === Group.LITTERALS
+                  ? this.castTo(_currentLineTokens[indexToken + 1])
+                  : variaveis.find(v => v.name === _currentLineTokens[indexToken + 1].attribute)?.valor;
+
+                aceitaIF = a == b;
+              }
+            }
+            break;
+
+          case Group.SEPARATORS:
+
+            if (_token.name === 'else' && !aceitaIF) {
+              aceitaIF = false;
+              aceitaELSE = true;
+              return
+            }
+
+            if (_token.name === 'else' && aceitaIF) {
+              aceitaIF = false;
+              aceitaELSE = false;
+              return;
+            }
+
+            if (_token.name === "fim-escopo" && (_currentLineTokens[indexToken + 1]?.name === "break-line" || _currentLineTokens[indexToken + 1] === undefined)) {
+              aceitaIF = false;
+              aceitaELSE = false;
+              return;
+            }
+
+            break;
+
+          default:
+
+
+            break;
+        }
+      });
+    }
+  }
+
+  /**
+   * @method castTo
+   * @param _token 
+   * @returns 
+   */
+  castTo(_token: Token) {
+    let result = null;
+    if (_token.name === '$Bo')
+      result = Boolean(_token.attribute);
+
+    if (['$In', '$Fl'].includes(_token.name))
+      result = Number(_token.attribute);
+    return result;
+  }
+
+  /**
+   * @method separaArrysTokensByLine
+   * @return TokenSequence[]
+   */
+  private separaArrysTokensByLine(tokens: TokenSequence): TokenSequence[] {
+    let arrayByLine: TokenSequence[] = [];
+    let _currentLineTokens: TokenSequence = []
+    tokens.forEach((_token: Token) => {
+
+      if (_token.name === 'break-line' || _token.name === "inicio-escopo") {
+        arrayByLine.push(_currentLineTokens);
+        console.log(_currentLineTokens);
+        _currentLineTokens = [];
+        return
+      }
+      _currentLineTokens.push(_token);
+    });
+    return arrayByLine;
+  }
+
 }

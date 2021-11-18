@@ -43,30 +43,27 @@
         <div class="card-body" #cardBody>
           <button pButton type="button" icon="pi pi-times" (click)="limparEditor()" class="p-button-danger limpar">
           </button>
-          <button pButton type="button" icon="pi pi-play" label="Compilar" (click)="compilar()" class="p-button">
+          <button pButton type="button" icon="pi pi-play" label="Compilar" (click)="reconhecerTokens()" class="p-button">
           </button>
         </div>
       </div>
     </div>
 
     <div class="col-md-6 mb-3">
-      <div class="card mb-3" style="min-height: 441px;" *ngIf="!!saida">
+      <div class="card mb-3" style="min-height: 441px;" *ngIf="!!tokenSequence">
         <div class="card-header bg-console">
           <div class="d-flex">
             <div class="col">
-              <span>Console</span>
+              <span class="txt-console">Console</span>
             </div>
-            <div class="">
-              <button class="btn btn-primary" (click)="expandir()">
-                {{ isJsonExpanded ? 'Fechar Tudo' : 'Expandir Tudo'}} 
-              </button>
-            </div>
+            <button class="btn btn-primary" (click)="expandir()">
+              {{ isJsonExpanded ? 'Fechar Tudo' : 'Expandir Tudo'}}
+            </button>
           </div>
-
         </div>
         <div class="card-body">
 
-          <ngx-json-viewer [json]="saida" [expanded]="isJsonExpanded" [depth]="1"></ngx-json-viewer>
+          <ngx-json-viewer [json]="tokenSequence" [expanded]="isJsonExpanded" [depth]="1"></ngx-json-viewer>
 
         </div>
       </div>
