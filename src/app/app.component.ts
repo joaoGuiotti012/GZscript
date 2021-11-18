@@ -5,7 +5,7 @@ import { Lexer, Group, Rule, Token, TokenSequence } from '@jlguenego/lexer';
 interface Variavel {
   type: string;
   name: unknown | string;
-  valor: any;
+  value: any;
 };
 
 @Component({
@@ -15,7 +15,7 @@ interface Variavel {
 })
 export class AppComponent {
   title = 'Compilador GZscript';
-  isJsonExpanded = true;
+  isJsonExpanded = false;
   codigoFonte: string = '';
   tokenSequence: TokenSequence;
   logErros: any = [];
@@ -213,7 +213,7 @@ export class AppComponent {
         pattern: /^v_[[a-zA-Z_$][a-zA-Z_$0-9]*$/,
       },
       {
-        name: 'read-variable',
+        name: 'read-var',
         pattern: 'readVar'
       },
       {
@@ -257,7 +257,8 @@ export class AppComponent {
     let aceitaIF: boolean = false;
     let aceitaELSE: boolean = false;
     let variaveis: Variavel[] = [];
-    const _tokensByLine: TokenSequence[] = this.separaArrysTokensByLine(this.tokenSequence);
+    let leituras: { position?: any, value: any }[] = [];
+    const _tokensByLine: TokenSequence[] = this.separaArraysTokensByLine(this.tokenSequence);
 
     for (let line = 0; line < _tokensByLine.length; line++) {
       let _currentLineTokens: TokenSequence = _tokensByLine[line];
@@ -271,17 +272,17 @@ export class AppComponent {
 
           case Group.LITTERALS:
 
-            if (variaveis.find(v => v.valor === '#') && _currentLineTokens[indexToken - 1].attribute === '=') {
+            if (variaveis.find(v => v.value === '#') && _currentLineTokens[indexToken - 1].attribute === '=') {
 
               if (_currentLineTokens[indexToken + 1]?.name === 'OA' && _currentLineTokens[indexToken + 2].group === Group.LITTERALS) {
-                variaveis[lastValIndex].valor = this.castTo(_token) + this.castTo(_currentLineTokens[indexToken + 2]);
+                variaveis[lastValIndex].value = this.castTo(_token) + this.castTo(_currentLineTokens[indexToken + 2]);
                 return;
               }
               let lastVal = variaveis[lastValIndex];
               if (typeof (this.castTo(_token)) !== lastVal.type)
                 throw (`ERROR: variavel "${lastVal.name}" não pertence ao tipo ${typeof (this.castTo(_token))}, POSITION: ${JSON.stringify(_token.position)} `);
 
-              variaveis[lastValIndex].valor = this.castTo(_token);
+              variaveis[lastValIndex].value = this.castTo(_token);
             }
             break;
 
@@ -292,19 +293,45 @@ export class AppComponent {
               if (variaveis.find(v => v.name === _token.attribute))
                 throw ('ERROR: Duplicidade de variaveis, POSITION: ' + JSON.stringify(_token.position));
 
-              variaveis.push({ type: _currentLineTokens[indexToken - 1].name, name: _token.attribute, valor: '#' })
+              variaveis.push({ type: _currentLineTokens[indexToken - 1].name, name: _token.attribute, value: '#' })
             }
+
             if (_token.name === 'read-output' && (aceitaIF || aceitaELSE)) {
-              alert(variaveis.find(v => v.name === _currentLineTokens[indexToken + 2].attribute)?.valor || _currentLineTokens[indexToken + 2].attribute);
+              let readOutData = null;
+
+              if (!!_currentLineTokens.find(t => t.name === 'read-var')) {
+                _currentLineTokens.forEach((t, i) => {
+                  if (t.name === 'read-var') {
+                    readOutData = prompt(String(_currentLineTokens[i + 2].attribute));
+                    leituras.push({ position: _token.position, value: readOutData });
+                    return;
+                  }
+                });
+              } else {
+                readOutData = variaveis.find(v => v.name === _currentLineTokens[indexToken + 2].attribute)?.value
+                  || _currentLineTokens[indexToken + 2].attribute;
+              }
+
+              if ([null, undefined].includes(readOutData))
+                throw (`ERROR: a função readOut não permite a impressão do que foi informado, ERRO: ${JSON.stringify(_token.position)}`);
+
+              // if (leituras.find(l => l.value === String(_currentLineTokens[indexToken + 2]?.attribute)))
+              // return;
+              alert(readOutData);
               return
             }
-            // if (_token.name === 'read-output' && aceitaELSE)
-            //   alert(variaveis.find(v => v.name === _currentLineTokens[indexToken + 2].attribute)?.valor || _currentLineTokens[indexToken + 2].attribute);
+
+            if (_token.name === 'read-var' && (aceitaIF || aceitaELSE) && !leituras.find(l => l.position.line == _token.position.line)) {
+              let l = prompt(String(_currentLineTokens[indexToken + 2].attribute));
+              leituras.push({ position: _token.position, value: l });
+            }
 
             break;
 
           case Group.OPERATORS:
 
+            // trata operações com condições
+            // EX : == ( 10 EQ 10 )
             if (_currentLineTokens[indexToken - 2].name === "inicio-condicao") {
 
               if (_token.name === 'OA') {
@@ -316,11 +343,11 @@ export class AppComponent {
               if (['EQ', 'NE', 'AND', 'OR', 'BTEQ', 'LTEQ'].includes(_token.name)) {
                 let a = _currentLineTokens[indexToken - 1].group === Group.LITTERALS
                   ? this.castTo(_currentLineTokens[indexToken - 1])
-                  : variaveis.find(v => v.name === _currentLineTokens[indexToken - 1].attribute)?.valor;
+                  : variaveis.find(v => v.name === _currentLineTokens[indexToken - 1].attribute)?.value;
 
                 let b = _currentLineTokens[indexToken + 1].group === Group.LITTERALS
                   ? this.castTo(_currentLineTokens[indexToken + 1])
-                  : variaveis.find(v => v.name === _currentLineTokens[indexToken + 1].attribute)?.valor;
+                  : variaveis.find(v => v.name === _currentLineTokens[indexToken + 1].attribute)?.value;
 
                 if ([a, b].includes(undefined))
                   throw (`ERROR: Variavel inexistente ou valores inconsistentes, POSITION: ${JSON.stringify(_token.position)} `);
@@ -348,7 +375,10 @@ export class AppComponent {
 
           case Group.SEPARATORS:
 
-            if (_token.name === 'else' && !aceitaIF) {
+            if (_token.name === 'inicio-condicao' && !_currentLineTokens.find(token => token.name === 'fim-condicao'))
+              throw (`ERROR: Faltou o fecha da condição ")", POSITION: ${JSON.stringify(_token.position)} `)
+
+            if (_token.name === 'else' && (!aceitaIF || _currentLineTokens[indexToken + 1]?.name === 'inicio-escopo')) {
               aceitaIF = false;
               aceitaELSE = true;
               return
@@ -365,7 +395,6 @@ export class AppComponent {
               aceitaELSE = false;
               return;
             }
-
             break;
 
           default:
@@ -394,10 +423,10 @@ export class AppComponent {
   }
 
   /**
-   * @method separaArrysTokensByLine
+   * @method separaArraysTokensByLine
    * @return TokenSequence[]
    */
-  private separaArrysTokensByLine(tokens: TokenSequence): TokenSequence[] {
+  private separaArraysTokensByLine(tokens: TokenSequence): TokenSequence[] {
     let arrayByLine: TokenSequence[] = [];
     let _currentLineTokens: TokenSequence = []
     if (tokens.slice(-1)[0].name != 'break-line')
