@@ -240,8 +240,8 @@ export class AppComponent {
       ...identifiers,
       ...separators,
       assigment,
-      symbols,
       ...valores,
+      symbols,
       word
     ];
 
@@ -272,7 +272,7 @@ export class AppComponent {
 
           case Group.LITTERALS:
 
-            if (variaveis.find(v => v.value === '#') && _currentLineTokens[indexToken - 1].attribute === '=') {
+            if (variaveis.length === 0 || (variaveis.find(v => v.value === '#') && _currentLineTokens[indexToken - 1].attribute === '=')) {
 
               if (_currentLineTokens[indexToken + 1]?.name === 'OA' && _currentLineTokens[indexToken + 2].group === Group.LITTERALS) {
                 variaveis[lastValIndex].value = this.castTo(_token) + this.castTo(_currentLineTokens[indexToken + 2]);
@@ -414,6 +414,8 @@ export class AppComponent {
    */
   castTo(_token: Token) {
     let result = null;
+    if (_token.name === '$St')
+      result = String(_token.attribute)
     if (['$In', '$Fl'].includes(_token.name))
       result = Number(_token.attribute);
 
